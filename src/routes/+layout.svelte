@@ -1,17 +1,12 @@
 <script lang="ts">
-	import './layout.css';
-	import favicon from '#lib/assets/favicon.svg';
+	import '../routes/layout.css';
+	import AppSidebar from '#lib/components/AppSidebar.svelte';
+	import type { LayoutProps } from './$types';
 
-	let { children } = $props();
+	let { data, children }: LayoutProps = $props();
 </script>
 
-<svelte:head>
-	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#f4f2ec" />
-	<meta
-		name="description"
-		content="Updates is a quiet, intelligent reader for the things worth your attention."
-	/>
-	<title>Updates</title>
-</svelte:head>
-{@render children()}
+<AppSidebar streams={data.streams} stats={data.stats} />
+<main class="min-h-screen px-5 pt-10 pb-28 sm:px-8 lg:ml-64 lg:max-w-295 lg:px-16 lg:pt-14">
+	{@render children()}
+</main>

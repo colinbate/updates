@@ -104,3 +104,50 @@ export interface PollResult {
 	articlesTriaged: number;
 	articlesSummarized: number;
 }
+
+export interface ArticleScore {
+	streamId: string;
+	relevance: number;
+	reason: string | null;
+	highlighted: boolean;
+}
+
+export interface ArticleListItem {
+	id: string;
+	title: string;
+	author: string | null;
+	url: string;
+	canonical_url: string | null;
+	published_at: string | null;
+	discovered_at: string;
+	saved: number;
+	dismissed: number;
+	read_at: string | null;
+	processing_status: ArticleRow['processing_status'];
+	last_processing_error: string | null;
+	feed_title: string;
+	article_type: ArticleType | null;
+	quality: number | null;
+	summary: ArticleSummary | null;
+	scores: ArticleScore[];
+}
+
+export interface FeedStreamRow {
+	feed_id: string;
+	stream_id: string;
+	prior_weight: number;
+}
+
+export interface AppStats {
+	articles: number;
+	saved: number;
+	highlights: number;
+	feeds: number;
+	unhealthyFeeds: number;
+}
+
+export interface DailyMetric {
+	day: string;
+	metric: string;
+	value: number;
+}

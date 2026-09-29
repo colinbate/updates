@@ -1,8 +1,8 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { env } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
-import { cleanupExpired } from '../../../lib/server/processing/cleanup';
-import { pollFeeds } from '../../../lib/server/processing/poll';
+import { cleanupExpired } from '#lib/server/processing/cleanup.js';
+import { pollFeeds } from '#lib/server/processing/poll.js';
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	const secret = env.CRON_SECRET;
@@ -12,10 +12,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	if (!env.DB) error(503, 'D1 binding is unavailable');
 
 	if (url.searchParams.get('task') === 'cleanup') {
-		return json(await cleanupExpired(env.DB));
+		return Response.json(await cleanupExpired(env.DB));
 	}
 	if (!env.AI) error(503, 'Workers AI binding is unavailable');
-	return json(
+	return Response.json(
 		await pollFeeds({
 			DB: env.DB,
 			AI: env.AI,

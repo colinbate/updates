@@ -45,4 +45,15 @@ pnpm build                 # production Cloudflare build plus cron bridge
 pnpm preview               # Wrangler preview (starts a local server)
 ```
 
+## Application structure
+
+- `src/routes` contains URL-backed screens and thin server load/action modules.
+- `src/lib/components` contains shared Tailwind-based interface components.
+- `src/lib/server/services` owns application queries and persistence by domain.
+- `src/lib/server/actions` contains reusable action handlers shared by reader routes.
+- `src/lib/server/processing` contains feed polling and article-processing workflows.
+
+Reader views are available at `/`, `/highlights`, `/saved`, and `/streams/[id]`. Feed,
+stream, and operational management live at `/feeds`, `/streams`, and `/diagnostics`.
+
 Do not use the placeholder D1 ID in production. Authentication and database creation are Cloudflare account operations and are intentionally not performed by the project build.
