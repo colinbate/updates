@@ -1,0 +1,13 @@
+{
+	"extends": "$app/tsconfig",
+	"compilerOptions": {
+		"rewriteRelativeImportExtensions": true,
+		"sourceMap": true,
+		"strict": true,
+		"types": [
+			"./src/worker-configuration.d.ts",
+			"node"
+		]
+	},
+	"include": ["src"]
+}
