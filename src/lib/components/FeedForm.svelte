@@ -138,7 +138,7 @@
 	>
 	<footer class="flex justify-end gap-2 border-t border-stone-200 pt-5">
 		<Button type="button" variant="secondary" onclick={oncancel}>Cancel</Button><Button
-			disabled={busy}>{busy ? 'Saving…' : 'Save feed'}</Button
+			disabled={busy}>{busy ? 'Saving and analyzing…' : 'Save feed'}</Button
 		>
 	</footer>
 </form>

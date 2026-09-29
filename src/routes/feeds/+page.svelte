@@ -8,6 +8,7 @@
 	import Modal from '#lib/components/Modal.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { relativeDate } from '#lib/display.js';
+	import type { PollResult } from '#lib/server/types.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -52,12 +53,22 @@
 		busy = busyKey;
 		notice = null;
 		try {
-			await postAction(action, form);
+			const result = await postAction<{
+				success: true;
+				importResult?: PollResult;
+				pollResult?: PollResult;
+			}>(action, form);
 			if (action === 'save') {
 				editingId = undefined;
 				draft = null;
 			}
-			notice = action === 'poll' ? 'Feed poll finished.' : 'Saved.';
+			const processing =
+				result.type === 'success' ? (result.data?.importResult ?? result.data?.pollResult) : null;
+			notice = processing?.articlesDiscovered
+				? `${action === 'poll' ? 'Feed poll finished' : 'Saved'}. Imported ${processing.articlesDiscovered}; any delayed summaries will continue on scheduled polls.`
+				: action === 'poll'
+					? 'Feed poll finished.'
+					: 'Saved.';
 		} catch (error) {
 			notice = error instanceof Error ? error.message : 'Something went wrong';
 		} finally {

@@ -144,6 +144,7 @@ export interface AppStats {
 	highlights: number;
 	feeds: number;
 	unhealthyFeeds: number;
+	processing: number;
 }
 
 export interface DailyMetric {

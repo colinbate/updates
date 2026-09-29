@@ -30,6 +30,15 @@
 			Updates
 		</a>
 		<div class="flex items-center gap-2">
+			{#if stats.processing}
+				<a
+					href="/diagnostics"
+					class="flex items-center gap-1.5 rounded-lg bg-pink-50 px-2.5 py-1.5 text-xs font-semibold text-pink-700"
+					title={`${stats.processing} ${stats.processing === 1 ? 'article' : 'articles'} still processing`}
+				>
+					<Icon name="refresh" class="size-3.5 animate-spin" />{stats.processing}
+				</a>
+			{/if}
 			{#if stats.unhealthyFeeds}
 				<a
 					href="/diagnostics"
@@ -158,7 +167,11 @@
 			class={[
 				linkClass,
 				active('/diagnostics') ? 'bg-pink-50 font-semibold text-pink-700' : 'text-stone-600'
-			]}><Icon name="diagnostics" class="size-4.5" />Diagnostics</a
+			]}
+			><Icon name="diagnostics" class="size-4.5" />Diagnostics
+			{#if stats.processing}<span class="ml-auto text-[10px] text-pink-700"
+					>{stats.processing} processing</span
+				>{/if}</a
 		>
 	</nav>
 

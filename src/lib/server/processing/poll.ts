@@ -7,10 +7,12 @@ import {
 	STAGE_2_MODEL,
 	SUMMARY_PROMPT_VERSION,
 	TRIAGE_PROMPT_VERSION,
+	Stage2RateLimitError,
 	summarizeArticle,
 	triageArticle
 } from '../ai/pipeline';
 import type {
+	ArticleSummary,
 	ArticleRow,
 	FeedRow,
 	ParsedEntry,
@@ -82,11 +84,39 @@ async function saveTriage(
 	]);
 }
 
+async function saveSummary(db: D1Database, articleId: string, summary: ArticleSummary) {
+	await db.batch([
+		db
+			.prepare(
+				`UPDATE article_analysis SET stage2_model = ?, stage2_prompt_version = ?,
+				 summary_json = ?, analyzed_at = ? WHERE article_id = ?`
+			)
+			.bind(STAGE_2_MODEL, SUMMARY_PROMPT_VERSION, JSON.stringify(summary), now(), articleId),
+		db
+			.prepare(
+				"UPDATE articles SET processing_status = 'summarized', last_processing_error = NULL, updated_at = ? WHERE id = ?"
+			)
+			.bind(now(), articleId)
+	]);
+	await metric(db, 'stage2_completed');
+}
+
+async function deferSummary(db: D1Database, articleId: string, error: Stage2RateLimitError) {
+	await db
+		.prepare(
+			"UPDATE articles SET processing_status = 'triaged', last_processing_error = ?, updated_at = ? WHERE id = ?"
+		)
+		.bind(error.message, now(), articleId)
+		.run();
+	await metric(db, 'stage2_deferred');
+}
+
 async function processArticle(env: RuntimeBindings, feed: FeedRow, articleId: string) {
 	const { DB: db } = env;
 	let article = await getArticle(db, articleId);
 	if (!article) return { triaged: false, summarized: false };
 	const stableArticleId = article.id;
+	let triageSaved = false;
 	const timestamp = now();
 	await db
 		.prepare(
@@ -121,6 +151,7 @@ async function processArticle(env: RuntimeBindings, feed: FeedRow, articleId: st
 		const priors = await getFeedPriors(db, feed.id);
 		const triage = await triageArticle(db, env.AI, article, feed.title, streams, priors);
 		await saveTriage(db, article, triage, streams);
+		triageSaved = true;
 		await metric(db, 'articles_triaged');
 
 		const passesThreshold = triage.streams.some((score) => {
@@ -130,22 +161,13 @@ async function processArticle(env: RuntimeBindings, feed: FeedRow, articleId: st
 		if (!triage.summarize || !passesThreshold) return { triaged: true, summarized: false };
 
 		const summary = await summarizeArticle(db, env.AI, article, triage, streams);
-		await db.batch([
-			db
-				.prepare(
-					`UPDATE article_analysis SET stage2_model = ?, stage2_prompt_version = ?,
-					 summary_json = ?, analyzed_at = ? WHERE article_id = ?`
-				)
-				.bind(STAGE_2_MODEL, SUMMARY_PROMPT_VERSION, JSON.stringify(summary), now(), article.id),
-			db
-				.prepare(
-					"UPDATE articles SET processing_status = 'summarized', last_processing_error = NULL, updated_at = ? WHERE id = ?"
-				)
-				.bind(now(), article.id)
-		]);
-		await metric(db, 'stage2_completed');
+		await saveSummary(db, article.id, summary);
 		return { triaged: true, summarized: true };
 	} catch (error) {
+		if (triageSaved && error instanceof Stage2RateLimitError) {
+			await deferSummary(db, stableArticleId, error);
+			return { triaged: true, summarized: false };
+		}
 		await db
 			.prepare(
 				"UPDATE articles SET processing_status = 'failed', last_processing_error = ?, updated_at = ? WHERE id = ?"
@@ -158,6 +180,55 @@ async function processArticle(env: RuntimeBindings, feed: FeedRow, articleId: st
 			.run();
 		return { triaged: false, summarized: false };
 	}
+}
+
+export async function processPendingSummaries(env: RuntimeBindings, limit = 10) {
+	const pending = await all<{ article_id: string; stage1_result_json: string }>(
+		env.DB,
+		`SELECT aa.article_id, aa.stage1_result_json
+		 FROM article_analysis aa
+		 JOIN articles a ON a.id = aa.article_id
+		 WHERE a.processing_status = 'triaged'
+		   AND aa.summary_json IS NULL
+		   AND json_extract(aa.stage1_result_json, '$.summarize') = 1
+		 ORDER BY a.updated_at
+		 LIMIT ?`,
+		Math.max(1, Math.min(limit, 25))
+	);
+	if (!pending.length) return { attempted: 0, completed: 0, deferred: 0, failed: 0 };
+
+	const streams = await getEnabledStreams(env.DB);
+	let completed = 0;
+	let deferred = 0;
+	let failed = 0;
+	for (const item of pending) {
+		const article = await getArticle(env.DB, item.article_id);
+		if (!article) continue;
+		try {
+			const triage = JSON.parse(item.stage1_result_json) as TriageResult;
+			const summary = await summarizeArticle(env.DB, env.AI, article, triage, streams);
+			await saveSummary(env.DB, article.id, summary);
+			completed += 1;
+		} catch (error) {
+			if (error instanceof Stage2RateLimitError) {
+				await deferSummary(env.DB, article.id, error);
+				deferred += 1;
+				break;
+			}
+			await env.DB.prepare(
+				"UPDATE articles SET processing_status = 'failed', last_processing_error = ?, updated_at = ? WHERE id = ?"
+			)
+				.bind(
+					error instanceof Error ? error.message.slice(0, 1500) : 'Unknown processing error',
+					now(),
+					article.id
+				)
+				.run();
+			failed += 1;
+		}
+	}
+
+	return { attempted: completed + deferred + failed, completed, deferred, failed };
 }
 
 function createPollResult(): PollResult {
@@ -277,6 +348,7 @@ async function pollFeed(env: RuntimeBindings, feed: FeedRow, result: PollResult)
 
 export async function pollFeeds(env: RuntimeBindings, onlyFeedId?: string): Promise<PollResult> {
 	const result = createPollResult();
+	await processPendingSummaries(env);
 	const feeds = onlyFeedId
 		? await all<FeedRow>(env.DB, 'SELECT * FROM feeds WHERE id = ? AND enabled = 1', onlyFeedId)
 		: await all<FeedRow>(env.DB, 'SELECT * FROM feeds WHERE enabled = 1 ORDER BY created_at');
