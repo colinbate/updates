@@ -1,5 +1,5 @@
 import { acquireContent } from '../content/acquire';
-import { all, getArticle, getEnabledStreams, getFeedPriors, id, metric, now } from '../db';
+import { all, getArticle, getEnabledStreams, getFeed, getFeedPriors, id, metric, now } from '../db';
 import { dedupeKey } from '../feeds/normalize';
 import { parseFeed } from '../feeds/parse';
 import {
@@ -10,7 +10,14 @@ import {
 	summarizeArticle,
 	triageArticle
 } from '../ai/pipeline';
-import type { ArticleRow, FeedRow, PollResult, StreamRow, TriageResult } from '../types';
+import type {
+	ArticleRow,
+	FeedRow,
+	ParsedEntry,
+	PollResult,
+	StreamRow,
+	TriageResult
+} from '../types';
 
 interface RuntimeBindings {
 	DB: D1Database;
@@ -68,7 +75,9 @@ async function saveTriage(
 				);
 		}),
 		db
-			.prepare("UPDATE articles SET processing_status = 'triaged', updated_at = ? WHERE id = ?")
+			.prepare(
+				"UPDATE articles SET processing_status = 'triaged', last_processing_error = NULL, updated_at = ? WHERE id = ?"
+			)
 			.bind(timestamp, article.id)
 	]);
 }
@@ -130,7 +139,7 @@ async function processArticle(env: RuntimeBindings, feed: FeedRow, articleId: st
 				.bind(STAGE_2_MODEL, SUMMARY_PROMPT_VERSION, JSON.stringify(summary), now(), article.id),
 			db
 				.prepare(
-					"UPDATE articles SET processing_status = 'summarized', updated_at = ? WHERE id = ?"
+					"UPDATE articles SET processing_status = 'summarized', last_processing_error = NULL, updated_at = ? WHERE id = ?"
 				)
 				.bind(now(), article.id)
 		]);
@@ -149,6 +158,80 @@ async function processArticle(env: RuntimeBindings, feed: FeedRow, articleId: st
 			.run();
 		return { triaged: false, summarized: false };
 	}
+}
+
+function createPollResult(): PollResult {
+	return {
+		feedsPolled: 0,
+		feedsFailed: 0,
+		articlesDiscovered: 0,
+		articlesDeduplicated: 0,
+		articlesTriaged: 0,
+		articlesSummarized: 0
+	};
+}
+
+async function insertAndProcessEntry(
+	env: RuntimeBindings,
+	feed: FeedRow,
+	entry: ParsedEntry,
+	key: string,
+	result: PollResult
+) {
+	const articleId = id('article');
+	const timestamp = now();
+	const inserted = await env.DB.prepare(
+		`INSERT OR IGNORE INTO articles (
+			 id, feed_id, dedupe_key, guid, url, canonical_url, title, author, published_at,
+			 discovered_at, feed_summary, feed_content, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	)
+		.bind(
+			articleId,
+			feed.id,
+			key,
+			entry.guid,
+			entry.url,
+			entry.canonicalUrl,
+			entry.title,
+			entry.author,
+			entry.publishedAt,
+			timestamp,
+			entry.summary,
+			entry.content,
+			timestamp,
+			timestamp
+		)
+		.run();
+
+	if (!inserted.meta.changes) {
+		result.articlesDeduplicated += 1;
+		await metric(env.DB, 'articles_deduplicated');
+		return;
+	}
+	result.articlesDiscovered += 1;
+	await metric(env.DB, 'articles_discovered');
+	const processed = await processArticle(env, feed, articleId);
+	if (processed.triaged) result.articlesTriaged += 1;
+	if (processed.summarized) result.articlesSummarized += 1;
+}
+
+async function updateFeedAfterFetch(feed: FeedRow, response: Response, db: D1Database) {
+	const timestamp = now();
+	await db
+		.prepare(
+			`UPDATE feeds SET etag = ?, last_modified = ?, last_polled_at = ?, last_successful_poll_at = ?,
+				 last_error = NULL, consecutive_errors = 0, updated_at = ? WHERE id = ?`
+		)
+		.bind(
+			response.headers.get('etag'),
+			response.headers.get('last-modified'),
+			timestamp,
+			timestamp,
+			timestamp,
+			feed.id
+		)
+		.run();
 }
 
 async function pollFeed(env: RuntimeBindings, feed: FeedRow, result: PollResult) {
@@ -174,69 +257,26 @@ async function pollFeed(env: RuntimeBindings, feed: FeedRow, result: PollResult)
 	const xml = await response.text();
 	const entries = parseFeed(xml, feed.url);
 
-	await env.DB.prepare(
-		`UPDATE feeds SET etag = ?, last_modified = ?, last_polled_at = ?, last_successful_poll_at = ?,
-			 last_error = NULL, consecutive_errors = 0, updated_at = ? WHERE id = ?`
-	)
-		.bind(
-			response.headers.get('etag'),
-			response.headers.get('last-modified'),
-			timestamp,
-			timestamp,
-			timestamp,
-			feed.id
-		)
-		.run();
+	await updateFeedAfterFetch(feed, response, env.DB);
 
 	for (const entry of entries) {
 		const key = await dedupeKey(feed.id, entry);
-		const articleId = id('article');
-		const inserted = await env.DB.prepare(
-			`INSERT OR IGNORE INTO articles (
-				 id, feed_id, dedupe_key, guid, url, canonical_url, title, author, published_at,
-				 discovered_at, feed_summary, feed_content, created_at, updated_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		const seen = await env.DB.prepare(
+			'INSERT OR IGNORE INTO feed_entries (feed_id, dedupe_key, first_seen_at, imported_at) VALUES (?, ?, ?, ?)'
 		)
-			.bind(
-				articleId,
-				feed.id,
-				key,
-				entry.guid,
-				entry.url,
-				entry.canonicalUrl,
-				entry.title,
-				entry.author,
-				entry.publishedAt,
-				now(),
-				entry.summary,
-				entry.content,
-				now(),
-				now()
-			)
+			.bind(feed.id, key, now(), now())
 			.run();
-
-		if (!inserted.meta.changes) {
+		if (!seen.meta.changes) {
 			result.articlesDeduplicated += 1;
 			await metric(env.DB, 'articles_deduplicated');
 			continue;
 		}
-		result.articlesDiscovered += 1;
-		await metric(env.DB, 'articles_discovered');
-		const processed = await processArticle(env, feed, articleId);
-		if (processed.triaged) result.articlesTriaged += 1;
-		if (processed.summarized) result.articlesSummarized += 1;
+		await insertAndProcessEntry(env, feed, entry, key, result);
 	}
 }
 
 export async function pollFeeds(env: RuntimeBindings, onlyFeedId?: string): Promise<PollResult> {
-	const result: PollResult = {
-		feedsPolled: 0,
-		feedsFailed: 0,
-		articlesDiscovered: 0,
-		articlesDeduplicated: 0,
-		articlesTriaged: 0,
-		articlesSummarized: 0
-	};
+	const result = createPollResult();
 	const feeds = onlyFeedId
 		? await all<FeedRow>(env.DB, 'SELECT * FROM feeds WHERE id = ? AND enabled = 1', onlyFeedId)
 		: await all<FeedRow>(env.DB, 'SELECT * FROM feeds WHERE enabled = 1 ORDER BY created_at');
@@ -265,10 +305,76 @@ export async function pollFeeds(env: RuntimeBindings, onlyFeedId?: string): Prom
 	return result;
 }
 
+export async function initializeFeed(
+	env: RuntimeBindings,
+	feedId: string,
+	selectedEntryUrls: string[]
+) {
+	const feed = await getFeed(env.DB, feedId);
+	if (!feed) throw new Error('Feed not found');
+	const response = await fetch(feed.url, {
+		headers: {
+			accept:
+				'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5',
+			'user-agent': 'Updates/0.1 personal feed reader'
+		},
+		redirect: 'follow'
+	});
+	if (!response.ok) throw new Error(`Feed returned ${response.status} ${response.statusText}`);
+	const entries = parseFeed(await response.text(), feed.url);
+	await updateFeedAfterFetch(feed, response, env.DB);
+
+	const selected = new Set(selectedEntryUrls.slice(0, 20));
+	const prepared = await Promise.all(
+		entries.map(async (entry) => ({
+			entry,
+			key: await dedupeKey(feed.id, entry),
+			selected: selected.has(entry.url) || selected.has(entry.canonicalUrl)
+		}))
+	);
+	const timestamp = now();
+	for (let index = 0; index < prepared.length; index += 50) {
+		await env.DB.batch(
+			prepared.slice(index, index + 50).map(({ key, selected: shouldImport }) =>
+				env.DB.prepare(
+					`INSERT INTO feed_entries (feed_id, dedupe_key, first_seen_at, imported_at)
+					 VALUES (?, ?, ?, ?)
+					 ON CONFLICT(feed_id, dedupe_key) DO UPDATE SET
+					 imported_at = coalesce(feed_entries.imported_at, excluded.imported_at)`
+				).bind(feed.id, key, timestamp, shouldImport ? timestamp : null)
+			)
+		);
+	}
+
+	const result = createPollResult();
+	result.feedsPolled = 1;
+	for (const item of prepared) {
+		if (item.selected) await insertAndProcessEntry(env, feed, item.entry, item.key, result);
+	}
+	return { ...result, entriesAvailable: entries.length, entriesSelected: selected.size };
+}
+
 export async function retryArticle(env: RuntimeBindings, articleId: string) {
 	const article = await getArticle(env.DB, articleId);
 	if (!article) throw new Error('Article not found');
 	const feeds = await all<FeedRow>(env.DB, 'SELECT * FROM feeds WHERE id = ?', article.feed_id);
 	if (!feeds[0]) throw new Error('Feed not found');
 	return processArticle(env, feeds[0], articleId);
+}
+
+export async function retryFailedArticles(env: RuntimeBindings, limit = 10) {
+	const articles = await all<{ id: string }>(
+		env.DB,
+		`SELECT id FROM articles
+		 WHERE processing_status = 'failed'
+		 ORDER BY updated_at
+		 LIMIT ?`,
+		Math.max(1, Math.min(limit, 10))
+	);
+	let succeeded = 0;
+	for (const article of articles) {
+		const result = await retryArticle(env, article.id);
+		if (result.triaged) succeeded += 1;
+	}
+	return { attempted: articles.length, succeeded, failed: articles.length - succeeded };
 }

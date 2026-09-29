@@ -151,3 +151,16 @@ export interface DailyMetric {
 	metric: string;
 	value: number;
 }
+
+export interface ProcessingStats {
+	pending: number;
+	triaged: number;
+	summarized: number;
+	failed: number;
+}
+
+export interface ProcessingErrorSummary {
+	message: string;
+	occurrences: number;
+	latestAt: string;
+}

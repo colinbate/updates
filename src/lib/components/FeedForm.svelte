@@ -4,6 +4,7 @@
 
 	let {
 		feed,
+		prefill,
 		streams,
 		feedStreams,
 		busy,
@@ -11,6 +12,11 @@
 		oncancel
 	}: {
 		feed: FeedRow | null;
+		prefill?: {
+			title: string;
+			url: string;
+			entries?: Array<{ title: string; url: string; publishedAt: string | null }>;
+		} | null;
 		streams: StreamRow[];
 		feedStreams: FeedStreamRow[];
 		busy: boolean;
@@ -24,18 +30,28 @@
 			: false;
 	}
 
+	function entryDate(value: string | null) {
+		if (!value) return 'Date unavailable';
+		return new Date(value).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
+	}
+
 	const fieldClass =
 		'mt-2 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-orange-500';
 </script>
 
 <form {onsubmit} class="grid gap-5">
 	<input type="hidden" name="id" value={feed?.id ?? ''} />
+	{#if prefill?.entries?.length}<input type="hidden" name="initializeFeed" value="1" />{/if}
 	<label class="text-sm font-semibold text-stone-700"
 		>Display name<input
 			class={fieldClass}
 			name="title"
 			required
-			value={feed?.title ?? ''}
+			value={feed?.title ?? prefill?.title ?? ''}
 			placeholder="Svelte blog"
 		/></label
 	>
@@ -45,7 +61,7 @@
 			name="url"
 			type="url"
 			required
-			value={feed?.url ?? ''}
+			value={feed?.url ?? prefill?.url ?? ''}
 			placeholder="https://example.com/feed.xml"
 		/></label
 	>
@@ -84,6 +100,34 @@
 				>{/each}
 		</div>
 	</fieldset>
+	{#if prefill?.entries?.length}
+		<fieldset class="rounded-xl border border-stone-200 p-4">
+			<legend class="px-1 text-sm font-semibold text-stone-700">Import earlier entries</legend>
+			<p class="mt-1 text-xs leading-5 text-stone-500">
+				Select any existing entries you want analyzed now. Unselected entries are marked as seen,
+				and genuinely new entries will be imported automatically on future polls.
+			</p>
+			<div
+				class="mt-3 max-h-64 divide-y divide-stone-200 overflow-y-auto border-y border-stone-200"
+			>
+				{#each prefill.entries as entry (entry.url)}
+					<label class="flex cursor-pointer items-start gap-3 py-3 pr-2 text-sm text-stone-700">
+						<input
+							class="mt-0.5 size-4 shrink-0 accent-orange-700"
+							type="checkbox"
+							name="importEntryUrl"
+							value={entry.url}
+						/>
+						<span class="min-w-0"
+							><strong class="block leading-5">{entry.title}</strong><small
+								class="mt-1 block text-stone-400">{entryDate(entry.publishedAt)}</small
+							></span
+						>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
+	{/if}
 	<label class="flex items-center gap-2 text-sm font-semibold text-stone-700"
 		><input
 			class="size-4 accent-orange-700"

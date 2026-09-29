@@ -1,42 +1,4 @@
-import type { ArticleSummary, ArticleType, TriageResult } from '../types';
-
-const ARTICLE_TYPES: ArticleType[] = [
-	'news',
-	'release',
-	'tutorial',
-	'analysis',
-	'opinion',
-	'announcement',
-	'discussion',
-	'reference',
-	'event',
-	'sponsored',
-	'other'
-];
-
-export const triageJsonSchema = {
-	type: 'object',
-	properties: {
-		articleType: { type: 'string', enum: ARTICLE_TYPES },
-		quality: { type: 'number', minimum: 0, maximum: 1 },
-		streams: {
-			type: 'array',
-			items: {
-				type: 'object',
-				properties: {
-					streamId: { type: 'string' },
-					relevance: { type: 'number', minimum: 0, maximum: 1 },
-					reason: { type: 'string' }
-				},
-				required: ['streamId', 'relevance', 'reason'],
-				additionalProperties: false
-			}
-		},
-		summarize: { type: 'boolean' }
-	},
-	required: ['articleType', 'quality', 'streams', 'summarize'],
-	additionalProperties: false
-};
+import type { ArticleSummary } from '../types';
 
 export const summaryJsonSchema = {
 	type: 'object',
@@ -58,40 +20,22 @@ function object(value: unknown): Record<string, unknown> | null {
 
 export function resultPayload(value: unknown) {
 	const root = object(value);
-	return root && 'response' in root ? root.response : value;
-}
-
-export function validateTriage(value: unknown, allowedStreams: Set<string>): TriageResult {
-	const data = object(resultPayload(value));
-	if (!data || !ARTICLE_TYPES.includes(data.articleType as ArticleType)) {
-		throw new Error('Stage 1 returned an invalid article type');
+	const firstChoice = root && Array.isArray(root.choices) ? object(root.choices[0]) : null;
+	const message = object(firstChoice?.message);
+	const payload =
+		root && 'response' in root
+			? root.response
+			: message && 'content' in message
+				? message.content
+				: root && 'output_text' in root
+					? root.output_text
+					: value;
+	if (typeof payload !== 'string') return payload;
+	try {
+		return JSON.parse(payload) as unknown;
+	} catch {
+		return payload;
 	}
-	if (typeof data.quality !== 'number' || !Array.isArray(data.streams)) {
-		throw new Error('Stage 1 returned an invalid score payload');
-	}
-	const streams = data.streams.map((item) => {
-		const row = object(item);
-		if (
-			!row ||
-			typeof row.streamId !== 'string' ||
-			!allowedStreams.has(row.streamId) ||
-			typeof row.relevance !== 'number' ||
-			typeof row.reason !== 'string'
-		) {
-			throw new Error('Stage 1 returned an invalid stream score');
-		}
-		return {
-			streamId: row.streamId,
-			relevance: Math.max(0, Math.min(1, row.relevance)),
-			reason: row.reason.slice(0, 500)
-		};
-	});
-	return {
-		articleType: data.articleType as ArticleType,
-		quality: Math.max(0, Math.min(1, data.quality)),
-		streams,
-		summarize: data.summarize === true
-	};
 }
 
 export function validateSummary(value: unknown): ArticleSummary {

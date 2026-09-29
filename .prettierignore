@@ -7,4 +7,5 @@ bun.lockb
 
 # Miscellaneous
 /static/
+.zed/
 src/worker-configuration.d.ts

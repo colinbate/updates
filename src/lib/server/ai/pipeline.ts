@@ -1,15 +1,11 @@
 import { metric } from '../db';
 import type { ArticleRow, StreamRow, TriageResult } from '../types';
-import {
-	SUMMARY_PROMPT_VERSION,
-	SUMMARY_SYSTEM_PROMPT,
-	TRIAGE_PROMPT_VERSION,
-	TRIAGE_SYSTEM_PROMPT
-} from './prompts';
-import { summaryJsonSchema, triageJsonSchema, validateSummary, validateTriage } from './schemas';
+import { SUMMARY_PROMPT_VERSION, SUMMARY_SYSTEM_PROMPT, TRIAGE_PROMPT_VERSION } from './prompts';
+import { createJevTriageInput, validateJevTriage } from './jev';
+import { summaryJsonSchema, validateSummary } from './schemas';
 
-export const STAGE_1_MODEL = '@cf/meta/llama-3.1-8b-instruct';
-export const STAGE_2_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+export const STAGE_1_MODEL = 'typesafe/jev';
+export const STAGE_2_MODEL = 'openai/gpt-6-luna';
 
 interface Prior {
 	stream_id: string;
@@ -25,33 +21,13 @@ export async function triageArticle(
 	priors: Prior[]
 ): Promise<TriageResult> {
 	await metric(db, 'stage1_requests');
-	const prompt = JSON.stringify({
-		feed: feedTitle,
-		article: {
-			title: article.title,
-			publishedAt: article.published_at,
-			content: (article.analysis_content ?? article.title).slice(0, 24_000)
-		},
-		streams: streams.map((stream) => ({
-			id: stream.id,
-			name: stream.name,
-			description: stream.description,
-			instructions: stream.relevance_instructions,
-			priorWeight: priors.find((prior) => prior.stream_id === stream.id)?.prior_weight ?? 0
-		}))
-	});
 
 	try {
-		const response = await ai.run(STAGE_1_MODEL, {
-			messages: [
-				{ role: 'system', content: TRIAGE_SYSTEM_PROMPT },
-				{ role: 'user', content: prompt }
-			],
-			response_format: { type: 'json_schema', json_schema: triageJsonSchema },
-			temperature: 0.1,
-			max_tokens: 1400
-		});
-		return validateTriage(response, new Set(streams.map((stream) => stream.id)));
+		const response = await ai.run(
+			STAGE_1_MODEL,
+			createJevTriageInput(article, feedTitle, streams, priors)
+		);
+		return validateJevTriage(response, streams);
 	} catch (error) {
 		await metric(db, 'stage1_failures');
 		throw error;
@@ -89,9 +65,17 @@ export async function summarizeArticle(
 					})
 				}
 			],
-			response_format: { type: 'json_schema', json_schema: summaryJsonSchema },
+			response_format: {
+				type: 'json_schema',
+				json_schema: {
+					name: 'article_summary',
+					strict: true,
+					schema: summaryJsonSchema
+				}
+			},
+			reasoning_effort: 'none',
 			temperature: 0.2,
-			max_tokens: 1200
+			max_completion_tokens: 1200
 		});
 		return validateSummary(response);
 	} catch (error) {

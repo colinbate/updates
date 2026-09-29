@@ -10,6 +10,9 @@ Updates is a single-user RSS/Atom intelligence reader built with SvelteKit 3 and
 - Two-stage Workers AI pipeline with JSON-schema output and explicit prompt/model provenance
 - Multiple stream scores per article, thresholds, highlights, save/dismiss/read actions, and bulk dismissal
 - Feed and stream management, manual feed polling, failed-article retries, and daily diagnostics
+- Feed discovery from site or article URLs, including standards-based metadata and conventional paths
+- A per-installation bookmarklet that sends the current page to the feed discovery screen
+- Selective import of existing feed entries during onboarding, with durable seen-entry history
 - Hourly polling, daily cleanup, and saved-article retention
 - Responsive desktop and mobile reader UI
 
