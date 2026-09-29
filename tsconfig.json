@@ -4,10 +4,7 @@
 		"rewriteRelativeImportExtensions": true,
 		"sourceMap": true,
 		"strict": true,
-		"types": [
-			"./src/worker-configuration.d.ts",
-			"node"
-		]
+		"types": ["$app/types", "./src/worker-configuration.d.ts", "node"]
 	},
 	"include": ["src"]
 }

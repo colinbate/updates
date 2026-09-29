@@ -10,6 +10,7 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	{ ignores: ['src/worker-configuration.d.ts'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,
@@ -31,6 +32,13 @@ export default defineConfig(
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser
 			}
+		}
+	},
+	{
+		files: ['src/routes/+page.svelte'],
+		rules: {
+			// Icons are selected from a fixed source-controlled SVG map; no user or feed HTML reaches it.
+			'svelte/no-at-html-tags': 'off'
 		}
 	},
 	{
