@@ -3,6 +3,7 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"packageManager": "pnpm@12.4.1",
 	"scripts": {
 		"dev": "vite dev --port 5512",
 		"build": "vite build && node scripts/append-cron.mjs",
@@ -16,7 +17,7 @@
 		"test": "pnpm run test:unit -- --run",
 		"db:migrate:local": "wrangler d1 migrations apply updates-db --local",
 		"db:migrate:remote": "wrangler d1 migrations apply updates-db --remote",
-		"deploy": "pnpm run build && wrangler deploy",
+		"deploy": "pnpm db:migrate:remote && wrangler deploy",
 		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts"
 	},
 	"devDependencies": {
