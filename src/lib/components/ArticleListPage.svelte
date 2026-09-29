@@ -88,7 +88,6 @@
 			{#each highlighted as article (article.id)}<ArticleCard
 					{article}
 					{streams}
-					hero
 					{busy}
 					onaction={articleAction}
 				/>{/each}
