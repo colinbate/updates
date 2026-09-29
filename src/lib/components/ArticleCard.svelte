@@ -26,7 +26,7 @@
 <article
 	class={[
 		'grid grid-cols-[2rem_1fr] gap-3 rounded-xl border bg-white/75 p-5 shadow-sm sm:p-6',
-		hero ? 'border-orange-200 bg-orange-50/45' : 'border-stone-200'
+		hero ? 'border-pink-200 bg-pink-50/45' : 'border-stone-200'
 	]}
 >
 	<div class="flex flex-col items-center gap-2">
@@ -56,7 +56,7 @@
 				{article.summary.whatHappened}
 			</p>
 			{#if article.summary.whyItMatters}
-				<div class="mt-4 border-l-2 border-orange-300 pl-4 text-sm leading-6 text-stone-600">
+				<div class="mt-4 border-l-2 border-pink-300 pl-4 text-sm leading-6 text-stone-600">
 					<strong class="text-stone-800">Why it matters:</strong>
 					{article.summary.whyItMatters}
 				</div>
@@ -76,7 +76,7 @@
 						href={`/streams/${score.streamId}`}
 						class="inline-flex items-center gap-2 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:bg-stone-200"
 					>
-						<span class="size-1.5 rounded-full bg-[#6f7c60]"></span>{streamMap.get(score.streamId)
+						<span class="size-1.5 rounded-full bg-pink-500"></span>{streamMap.get(score.streamId)
 							?.name ?? score.streamId}<span class="text-stone-400"
 							>{Math.round(score.relevance * 100)}%</span
 						>
@@ -93,26 +93,26 @@
 				target="_blank"
 				rel="noreferrer"
 				onclick={() => onaction(article.id, 'read')}
-				class="mr-auto inline-flex items-center gap-1.5 rounded-md py-2 pr-2 text-stone-900 hover:text-orange-700"
+				class="mr-auto inline-flex items-center gap-1.5 rounded-md py-2 pr-2 text-stone-900 hover:text-pink-700"
 				>Read original <Icon name="external" class="size-3.5" /></a
 			>
 			<button
 				disabled={busy === `save:${article.id}`}
 				onclick={() => onaction(article.id, 'save')}
 				class={[
-					'inline-flex items-center gap-1.5 rounded-md px-2 py-2 hover:bg-stone-100 hover:text-orange-700',
-					article.saved ? 'text-orange-700' : 'text-stone-500'
+					'inline-flex items-center gap-1.5 rounded-md px-2 py-2 hover:bg-stone-100 hover:text-pink-700',
+					article.saved ? 'text-pink-700' : 'text-stone-500'
 				]}><Icon name="saved" class="size-3.5" />{article.saved ? 'Saved' : 'Save'}</button
 			>
 			<button
 				disabled={busy === `dismiss:${article.id}`}
 				onclick={() => onaction(article.id, 'dismiss')}
-				class="inline-flex items-center gap-1.5 rounded-md px-2 py-2 text-stone-500 hover:bg-stone-100 hover:text-orange-700"
+				class="inline-flex items-center gap-1.5 rounded-md px-2 py-2 text-stone-500 hover:bg-stone-100 hover:text-pink-700"
 				><Icon name="close" class="size-3.5" />Dismiss</button
 			>
 			{#if article.processing_status === 'failed'}<button
 					onclick={() => onaction(article.id, 'retry')}
-					class="inline-flex items-center gap-1.5 rounded-md px-2 py-2 text-stone-500 hover:bg-stone-100 hover:text-orange-700"
+					class="inline-flex items-center gap-1.5 rounded-md px-2 py-2 text-stone-500 hover:bg-stone-100 hover:text-pink-700"
 					><Icon name="refresh" class="size-3.5" />Retry</button
 				>{/if}
 		</div>

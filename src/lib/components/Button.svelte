@@ -7,7 +7,7 @@
 	let { children, variant = 'primary', class: className, ...rest }: Props = $props();
 
 	const variants: Record<Variant, string> = {
-		primary: 'border-stone-900 bg-stone-900 text-white hover:bg-stone-700',
+		primary: 'border-pink-500 bg-pink-500 text-white hover:border-pink-600 hover:bg-pink-600',
 		secondary: 'border-stone-300 bg-white/70 text-stone-700 hover:border-stone-400 hover:bg-white',
 		ghost:
 			'border-transparent bg-transparent text-stone-500 hover:bg-stone-100 hover:text-stone-900',

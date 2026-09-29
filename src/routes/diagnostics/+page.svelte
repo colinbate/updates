@@ -121,7 +121,9 @@
 {#if data.processingErrors.length}
 	<section class="mt-10">
 		<div class="mb-4">
-			<h2 class="font-serif text-xl font-semibold">Processing failures</h2>
+			<h2 class="flex items-center gap-2 font-serif text-xl font-semibold">
+				<Icon name="warning" class="size-5 text-red-600" />Processing failures
+			</h2>
 			<p class="mt-1 text-sm text-stone-500">
 				Errors are grouped by their exact message so one configuration problem is easy to identify.
 			</p>

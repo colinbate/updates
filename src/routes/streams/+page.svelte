@@ -65,7 +65,7 @@
 				</div>
 				<a
 					href={`/streams/${stream.id}`}
-					class="mt-5 block font-serif text-xl font-semibold hover:text-orange-700">{stream.name}</a
+					class="mt-5 block font-serif text-xl font-semibold hover:text-pink-700">{stream.name}</a
 				>
 				<p class="mt-2 min-h-10 text-sm leading-5 text-stone-500">
 					{stream.description || 'No description yet.'}

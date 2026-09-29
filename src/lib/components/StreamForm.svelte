@@ -14,7 +14,7 @@
 		oncancel: () => void;
 	} = $props();
 	const fieldClass =
-		'mt-2 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-orange-500';
+		'mt-2 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-pink-500';
 </script>
 
 <form {onsubmit} class="grid gap-5">
@@ -79,7 +79,7 @@
 	</div>
 	<label class="flex items-center gap-2 text-sm font-semibold text-stone-700"
 		><input
-			class="size-4 accent-orange-700"
+			class="size-4 accent-pink-500"
 			type="checkbox"
 			name="enabled"
 			checked={stream ? Boolean(stream.enabled) : true}

@@ -40,7 +40,7 @@
 	}
 
 	const fieldClass =
-		'mt-2 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-orange-500';
+		'mt-2 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-pink-500';
 </script>
 
 <form {onsubmit} class="grid gap-5">
@@ -91,7 +91,7 @@
 			{#each streams as stream (stream.id)}<label
 					class="flex items-center gap-2 text-sm text-stone-600"
 					><input
-						class="size-4 accent-orange-700"
+						class="size-4 accent-pink-500"
 						type="checkbox"
 						name="streamId"
 						value={stream.id}
@@ -113,7 +113,7 @@
 				{#each prefill.entries as entry (entry.url)}
 					<label class="flex cursor-pointer items-start gap-3 py-3 pr-2 text-sm text-stone-700">
 						<input
-							class="mt-0.5 size-4 shrink-0 accent-orange-700"
+							class="mt-0.5 size-4 shrink-0 accent-pink-500"
 							type="checkbox"
 							name="importEntryUrl"
 							value={entry.url}
@@ -130,7 +130,7 @@
 	{/if}
 	<label class="flex items-center gap-2 text-sm font-semibold text-stone-700"
 		><input
-			class="size-4 accent-orange-700"
+			class="size-4 accent-pink-500"
 			type="checkbox"
 			name="enabled"
 			checked={feed ? Boolean(feed.enabled) : true}

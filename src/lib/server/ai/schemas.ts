@@ -18,8 +18,24 @@ function object(value: unknown): Record<string, unknown> | null {
 		: null;
 }
 
+export function workersAiResult(value: unknown) {
+	const envelope = object(value);
+	if (!envelope || !('state' in envelope) || !('result' in envelope)) return value;
+
+	if (typeof envelope.state !== 'string' || envelope.state.toLowerCase() !== 'completed') {
+		throw new Error(
+			typeof envelope.state === 'string'
+				? `Workers AI request did not complete (state: ${envelope.state})`
+				: 'Workers AI returned an invalid execution state'
+		);
+	}
+
+	return envelope.result;
+}
+
 export function resultPayload(value: unknown) {
-	const root = object(value);
+	const unwrapped = workersAiResult(value);
+	const root = object(unwrapped);
 	const firstChoice = root && Array.isArray(root.choices) ? object(root.choices[0]) : null;
 	const message = object(firstChoice?.message);
 	const payload =
@@ -29,7 +45,7 @@ export function resultPayload(value: unknown) {
 				? message.content
 				: root && 'output_text' in root
 					? root.output_text
-					: value;
+					: unwrapped;
 	if (typeof payload !== 'string') return payload;
 	try {
 		return JSON.parse(payload) as unknown;

@@ -36,10 +36,14 @@ describe('Jev triage', () => {
 	it('normalizes typed answers into the existing triage result', () => {
 		const result = validateJevTriage(
 			{
-				answers: {
-					article_type: { type: 'choice', choice: 'release', confidence: 0.95 },
-					quality: { type: 'score', score: 3.2, confidence: 0.9 },
-					stream_0: { type: 'noul', noul: 0.82 }
+				state: 'Completed',
+				result: {
+					model: 'jev-1.13.0',
+					answers: {
+						article_type: { type: 'choice', choice: 'release', confidence: 0.95 },
+						quality: { type: 'score', score: 3.2, confidence: 0.9 },
+						stream_0: { type: 'noul', noul: 0.82 }
+					}
 				}
 			},
 			[stream]
@@ -53,13 +57,38 @@ describe('Jev triage', () => {
 		});
 	});
 
+	it('continues to accept the documented direct model response', () => {
+		expect(
+			validateJevTriage(
+				{
+					model: 'jev-1.13.0',
+					answers: {
+						article_type: { type: 'choice', choice: 'news' },
+						quality: { type: 'score', score: 2 },
+						stream_0: { type: 'noul', noul: 0.25 }
+					}
+				},
+				[stream]
+			)
+		).toMatchObject({ articleType: 'news', quality: 0.5, summarize: false });
+	});
+
+	it('rejects an incomplete execution envelope', () => {
+		expect(() => validateJevTriage({ state: 'Failed', result: null }, [stream])).toThrow(
+			'did not complete (state: Failed)'
+		);
+	});
+
 	it('rejects incomplete relevance answers', () => {
 		expect(() =>
 			validateJevTriage(
 				{
-					answers: {
-						article_type: { type: 'choice', choice: 'release' },
-						quality: { type: 'score', score: 3 }
+					state: 'Completed',
+					result: {
+						answers: {
+							article_type: { type: 'choice', choice: 'release' },
+							quality: { type: 'score', score: 3 }
+						}
 					}
 				},
 				[stream]

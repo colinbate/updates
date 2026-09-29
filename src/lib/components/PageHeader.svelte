@@ -4,7 +4,9 @@
 		$props();
 </script>
 
-<header class="mb-10 flex max-w-5xl items-end justify-between gap-8">
+<header
+	class="mb-8 flex max-w-5xl flex-col items-start justify-between gap-5 sm:mb-10 sm:flex-row sm:items-end sm:gap-8"
+>
 	<div>
 		<h1
 			class="font-serif text-4xl leading-none font-medium tracking-tight text-stone-900 sm:text-5xl"

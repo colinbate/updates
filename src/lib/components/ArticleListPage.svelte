@@ -123,7 +123,7 @@
 		>
 			{#snippet actions()}{#if !feedCount}<a
 						href="/feeds"
-						class="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700"
+						class="inline-flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-600"
 						>Add a feed <Icon name="arrow" /></a
 					>{/if}{/snippet}
 		</EmptyState>

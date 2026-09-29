@@ -1,4 +1,5 @@
 import type { ArticleRow, ArticleType, StreamRow, TriageResult } from '../types';
+import { workersAiResult } from './schemas';
 
 const ARTICLE_TYPE_CRITERIA: Record<ArticleType, string> = {
 	news: 'Reporting about a current development or change',
@@ -106,7 +107,7 @@ export function createJevTriageInput(
 }
 
 export function validateJevTriage(value: unknown, streams: StreamRow[]): TriageResult {
-	const root = object(value);
+	const root = object(workersAiResult(value));
 	const answers = object(root?.answers);
 	const articleTypeAnswer = object(answers?.article_type) as JevChoiceAnswer | null;
 	const qualityAnswer = object(answers?.quality) as JevScoreAnswer | null;

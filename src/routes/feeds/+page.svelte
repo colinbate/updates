@@ -159,7 +159,7 @@
 		</p>
 		<form class="mt-5 flex flex-col gap-2 sm:flex-row" onsubmit={discover}>
 			<input
-				class="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-orange-500"
+				class="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-pink-500"
 				name="sourceUrl"
 				type="text"
 				inputmode="url"
@@ -200,7 +200,7 @@
 		</p>
 		<a
 			href={bookmarklet}
-			class="mt-5 inline-flex cursor-grab items-center gap-2 rounded-lg border border-stone-900 bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-700"
+			class="mt-5 inline-flex cursor-grab items-center gap-2 rounded-lg border border-pink-500 bg-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:border-pink-600 hover:bg-pink-600"
 			><Icon name="plus" />Feed to Updates</a
 		>
 		<p class="mt-3 text-xs leading-5 text-stone-400">
