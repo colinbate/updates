@@ -1,7 +1,7 @@
 {
 	"name": "updates",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"type": "module",
 	"packageManager": "pnpm@12.4.1",
 	"scripts": {
