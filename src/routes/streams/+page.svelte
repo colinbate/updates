@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { postAction } from '#lib/client/actions.js';
 	import Button from '#lib/components/Button.svelte';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import Modal from '#lib/components/Modal.svelte';
@@ -11,6 +12,8 @@
 	let { data }: PageProps = $props();
 	let editingId = $state<string | null | undefined>(undefined);
 	let busy = $state(false);
+	let deletingStream = $state<PageProps['data']['streams'][number] | null>(null);
+	let deleting = $state(false);
 	let notice = $state<string | null>(null);
 	const currentStream = $derived(data.streams.find((stream) => stream.id === editingId) ?? null);
 
@@ -28,13 +31,19 @@
 		}
 	}
 
-	async function remove(id: string) {
+	async function remove() {
+		if (!deletingStream) return;
 		const form = new FormData();
-		form.set('id', id);
+		form.set('id', deletingStream.id);
+		deleting = true;
 		try {
 			await postAction('delete', form);
+			deletingStream = null;
+			notice = 'Stream deleted.';
 		} catch (error) {
 			notice = error instanceof Error ? error.message : 'Something went wrong';
+		} finally {
+			deleting = false;
 		}
 	}
 </script>
@@ -52,21 +61,17 @@
 	<section class="grid gap-4 md:grid-cols-2">
 		{#each data.streams as stream (stream.id)}
 			<article class="rounded-xl border border-stone-200 bg-white/70 p-5">
-				<div class="flex items-center justify-between">
-					<span
-						class="grid size-11 place-items-center rounded-xl bg-stone-200 font-serif text-sm font-bold text-stone-600"
-						>{stream.name.slice(0, 2).toUpperCase()}</span
+				<div class="flex items-start justify-between gap-3">
+					<a
+						href={`/streams/${stream.id}`}
+						class="font-serif text-xl font-semibold hover:text-pink-700">{stream.name}</a
 					><span
 						class={[
-							'rounded-full px-2 py-1 text-[10px] font-semibold',
+							'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold',
 							stream.enabled ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'
 						]}>{stream.enabled ? 'Enabled' : 'Paused'}</span
 					>
 				</div>
-				<a
-					href={`/streams/${stream.id}`}
-					class="mt-5 block font-serif text-xl font-semibold hover:text-pink-700">{stream.name}</a
-				>
 				<p class="mt-2 min-h-10 text-sm leading-5 text-stone-500">
 					{stream.description || 'No description yet.'}
 				</p>
@@ -88,7 +93,7 @@
 						variant="danger"
 						class="ml-auto px-2.5"
 						aria-label="Delete stream"
-						onclick={() => remove(stream.id)}><Icon name="trash" /></Button
+						onclick={() => (deletingStream = stream)}><Icon name="trash" /></Button
 					>
 				</div>
 			</article>
@@ -113,6 +118,15 @@
 			oncancel={() => (editingId = undefined)}
 		/></Modal
 	>{/if}
+{#if deletingStream}<ConfirmDialog
+		title="Delete stream?"
+		itemName={deletingStream.name}
+		description="This removes the stream and its article matches. Existing articles and feeds will remain. This cannot be undone."
+		confirmLabel="Delete stream"
+		busy={deleting}
+		onconfirm={remove}
+		oncancel={() => (deletingStream = null)}
+	/>{/if}
 {#if notice}<button
 		class="fixed right-5 bottom-20 z-50 flex items-center gap-3 rounded-xl bg-stone-900 px-4 py-3 text-sm text-white shadow-xl lg:bottom-5"
 		onclick={() => (notice = null)}>{notice}<Icon name="close" /></button

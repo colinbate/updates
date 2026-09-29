@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { postAction } from '#lib/client/actions.js';
 	import Button from '#lib/components/Button.svelte';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import FeedForm from '#lib/components/FeedForm.svelte';
 	import Icon from '#lib/components/Icon.svelte';
@@ -42,6 +43,7 @@
 		)
 	);
 	let editingId = $state<string | null | undefined>(initialCandidate ? null : undefined);
+	let deletingFeed = $state<Feed | null>(null);
 	let busy = $state<string | null>(null);
 	let notice = $state<string | null>(null);
 	const currentFeed = $derived(data.feeds.find((feed) => feed.id === editingId) ?? null);
@@ -69,8 +71,10 @@
 				: action === 'poll'
 					? 'Feed poll finished.'
 					: 'Saved.';
+			return true;
 		} catch (error) {
 			notice = error instanceof Error ? error.message : 'Something went wrong';
+			return false;
 		} finally {
 			busy = null;
 		}
@@ -146,10 +150,18 @@
 		void run('save', new FormData(event.currentTarget as HTMLFormElement), 'save');
 	}
 
-	function feedAction(action: 'poll' | 'delete', id: string) {
+	function pollFeed(id: string) {
 		const form = new FormData();
 		form.set('id', id);
-		void run(action, form, `${action}:${id}`);
+		void run('poll', form, `poll:${id}`);
+	}
+
+	async function confirmDelete() {
+		if (!deletingFeed) return;
+		const feed = deletingFeed;
+		const form = new FormData();
+		form.set('id', feed.id);
+		if (await run('delete', form, `delete:${feed.id}`)) deletingFeed = null;
 	}
 </script>
 
@@ -267,14 +279,14 @@
 						class="px-2.5"
 						title="Poll now"
 						disabled={busy === `poll:${feed.id}`}
-						onclick={() => feedAction('poll', feed.id)}><Icon name="refresh" /></Button
+						onclick={() => pollFeed(feed.id)}><Icon name="refresh" /></Button
 					><Button variant="ghost" class="px-2.5" title="Edit" onclick={() => editFeed(feed.id)}
 						><Icon name="edit" /></Button
 					><Button
 						variant="danger"
 						class="px-2.5"
 						title="Delete"
-						onclick={() => feedAction('delete', feed.id)}><Icon name="trash" /></Button
+						onclick={() => (deletingFeed = feed)}><Icon name="trash" /></Button
 					>
 				</div>
 			</article>
@@ -302,6 +314,15 @@
 			oncancel={() => (editingId = undefined)}
 		/></Modal
 	>{/if}
+{#if deletingFeed}<ConfirmDialog
+		title="Delete feed?"
+		itemName={deletingFeed.title}
+		description="This removes the feed and every article imported from it. This cannot be undone."
+		confirmLabel="Delete feed"
+		busy={busy === `delete:${deletingFeed.id}`}
+		onconfirm={confirmDelete}
+		oncancel={() => (deletingFeed = null)}
+	/>{/if}
 {#if notice}<button
 		class="fixed right-5 bottom-20 z-50 flex items-center gap-3 rounded-xl bg-stone-900 px-4 py-3 text-sm text-white shadow-xl lg:bottom-5"
 		onclick={() => (notice = null)}>{notice}<Icon name="close" /></button

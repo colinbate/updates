@@ -120,7 +120,7 @@
 	>
 		<span>Streams</span><a
 			href="/streams"
-			class="rounded-md p-1 hover:bg-stone-300"
+			class="rounded-md p-1 hover:bg-stone-300 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-100"
 			aria-label="Manage streams"><Icon name="plus" class="size-3.5" /></a
 		>
 	</div>

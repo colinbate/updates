@@ -85,7 +85,7 @@
 			{#each relevantScores as score (score.streamId)}
 				<a
 					href={`/streams/${score.streamId}`}
-					class="inline-flex items-center gap-2 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:bg-stone-200"
+					class="inline-flex items-center gap-2 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:bg-stone-200 dark:hover:bg-stone-700"
 				>
 					<span class="size-1.5 rounded-full bg-pink-500"></span>{streamMap.get(score.streamId)
 						?.name ?? score.streamId}<span class="text-stone-400"
